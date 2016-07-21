@@ -1,0 +1,158 @@
+Herein bytes are defined as 8-bit values taking up a pointer arithmetic interval of 1.
+
+EDG (Edgy Data Get!) is a .bmp replacement format. It is not designed to include compression, metadata, or color profiles, nor to suck less (though it does incidentally just plain not suck).
+
+EDG files have a file extension of ".edg".
+
+Format summary:
+4 magic
+4 height
+4 width
+1 barrier
+1 flags
+2 xorsum
+total header length: 16 bytes
+
+;
+
+char[4] magic = "EDG\0"
+
+The value of magic must be validated. The image must be rejected otherwise.
+
+;
+
+uint32_t height;
+uint32_t width;
+Width and height of the image, minus one.
+
+    Dimensions specification:
+
+In other words, a width value of 0 corresponds to an image with one column.
+
+Instead of pixel count, think of width/height as the number of pixel transitions present in the image, or as the zero-indexed indexes of the far edges of the image. An image with a height of 0xFF'FF'FF'FF contains 0x1'00'00'00'00 rows of pixels.
+
+All implementations are allowed to reject images that are too large for them to handle.
+
+;
+
+char barrier = 0xFF
+
+The value of barrier must be validated. The image must be rejected otherwise. This is a sentry encforcing binary mode data handling.
+
+;
+
+char flags
+
+    Format flags specification:
+
+From most to least significant bit: ABCDEFGH
+
+Format flags:
+
+A: Value format
+B: Is grayscale
+C: Contains alpha
+D: Is little endian
+
+Value format
+0 = 8-bit integer values in sRGB gamma space (i.e. physical 50% intensity has a value between 50% and 100% encoded
+1 = 32-bit IEEE floating point, linear gamma space (i.e. physical 50% intensity is encoded as a value of 50%)
+
+Grayscale
+0 = Indicates that each pixel contains 3 color values; R, G, and B
+1 = Indicates that each pixel contains 1 color value; White
+
+Alpha
+0 = Indicates that the image does not contain an alpha channel
+1 = Indicates that each pixel additionally contains an alpha value, in addition to the color value/s
+
+Endian
+0 = big endian
+1 = little endian
+Note that mixed endians and defective endians are not supported.
+
+Metadata flags:
+
+E: No seam to top
+F: No seam to bottom
+G: No seam to left
+H: No seam to right
+
+A value of 1 indicates that the given edge must not be treated as edge-aligned. A value of 0 indicates that the given edge has undefined seam tolerance. A value of 0 does NOT indicate that the given edge has edge-aligned pixel centers.
+
+Note that edge-alignment here is flipped in meaning compared to and "match edges" from http://entropymine.com/imageworsener/matching/ -- imageworsener's terminology is based on comparing source and destination pixels as rectangular units, wheras EDG's terminology is based on how tiles and textures work.
+
+When you tile a texture and then upsample it, meeting edges do not meet exactly; they have the same interpolation period between them as any normal two pixels do. This is "center alignment", because the semantics of pixel centers are preserved. There would inherently be a seam if the source pixel centers are now aligned to the destination edges, i.e. "edge-alignment".
+
+It's possible for images to tile on only one side, or to not tile on only one side, if they are only meant to be used in specific places in games and such. This information isn't necessarily useful to applications, but if any of these metadata flags are set to true, it's probably wrong to upscale the image with imageworsener's "match centers" model.
+
+;
+
+uint16_t xorsum;
+
+    xorsum specification:
+
+This is the former seven 16-bit words of the header bitwise XOR'd together. Implementations are required to reject images with an invalid xorsum. 
+
+Q: "What endian is xorsum stored in?" A: "Are you ill?"
+
+    Rejection:
+
+Rejection is implementation-defined. However, rejection must be implemented in some capacity and in a manner that's reasonable for the use case of the implementation.
+
+    Image data format:
+
+Following the 16-byte header is the image data buffer. This buffer is exactly rows*columns*bytes_per_pixel bytes long.
+
+The smallest unit of information is the Value. A Value is either 8 (uint) or 32 (float) bits, as specified by the format flags. 32-bit Values are encoded in the same endian as the BOM.
+
+The next-smallest unit of information is the Pixel. A Pixel is encoded as a left-to-right (low-address to high-address) list of Values. The order of Values inside of a single Pixel is not subject to endian. The four valid Value orders are:
+White
+White, Alpha
+Red, Green, Blue
+Red, Green, Blue, Alpha
+These value orders correspond to their respective format configuration.
+
+All formats have a black point of 0, and a white point of 255 or 1.0. When a program uses alpha as opacity, 0 alpha corresponds to fully transparent, and 1.0 alpha corresponds to fully opaque.
+
+Note that non-alpha values may be called Intensity elsewhere in this specification.
+
+The next-smallest unit of information is the Scanline. A Scanline is a left-to-right (left origin) sequence of Pixels. A new Scanline begins every [columns] pixels. Each Scanline contains exactly [columns] pixels.
+
+The next-smallest unit of information is the Field. A Field is a top-to-bottom (top origin) sequence of Scanlines. An Image contains exactly one field. A Field contains exactly [rows] scanlines.
+
+    File storage:
+
+EDG files should not be padded. However, it is required for implementations to be tolerant of padding. Padding must be completely ignored. This means that users of the implementation must not be able to access padding at all. Padding anywhere other than the end of the image data is illegal. A general purpose EDG implementation cannot use padding to store metadata (such as tags or a RIFF tree).
+
+Implementations are required to accept truncated images. Truncated images are completed with pixels of all 100% value (intensity, and alpha if applicable). When truncation occurs mid-Pixel or mid-Value, the affected Pixel must be treated as fully opaque white. White here is the sRGB white; truncated RGB triads must be 100% 100% 100% and grayscale value must be 100%.
+
+An EDG file cannot both be truncated and padded. An image data length shorter than implied by the header is truncated, and an image data length longer than implied by the header is padded.
+
+    Using image data:
+
+Images are allowed to contain floating point values outside the range of 0.0 to 1.0. Intensity Values outside this range must be clipped properly when converting to LDR. For example, intensity values just below 0.0 should not turn into intensity values just below 1.0.
+
+Standard mixing with alpha values from 0.0 to 1.0 must work as defined below. Standard mixing with alpha values outside this range is implementation-defined, but alpha values near 0.0 and 1.0 must give an result similar to 0.0/1.0, and not become dissimilar unsmoothly or too rapidly.
+
+THE ALPHA CHANNEL MAY BE USED FOR NON-OPACITY PURPOSES IN SPECIALIZED APPLICATIONS. INTENSITIES ARE NOT PREMULTIPLIED AGAINST THE ALPHA CHANNEL AND ZERO-ALPHA PIXELS MUST NOT HAVE THEIR INTENSITY VALUES MODIFIED BY THE IMPLEMENTATION UNLESS THE USER EXPLICITLY SPECIFIES TO DO SO.
+
+If you need premultiplied alpha, do it at runtime. Premultiplied alpha 
+
+When Alpha is a standard mixing function, it must be interpreted in the gamma space that the Intensity values are stored in. In other words, in the function (a*A)+(b*(1-A)), "a" must be the Value , and "b" must be in the same gamma space. This means that you cannot convert a linear sRGB Value to normal sRGB, and then use the Alpha channel for mixing. You must use the Alpha channel in the gamma space that the Intensity values were stored in. Yes, this does actually have a real and actual effect on the way the image is rendered.
+
+Specialized programs are allowed to reinterpret the meaning of the "Alpha" data so long as it is the expected behavior in that program. For example, image editors widely define a "Normal" blend as taking place specifically in the normal sRGB gamma space. In such cases, reinterpreting "Alpha" makes sense, and is acceptable.
+
+However, this is not the behavior that the creator of an arbitrary alpha-wielding image would see. Alpha mixing pure red and pure blue in normal sRGB space results in a visually different color than doing so in linear sRGB space, and there's no way to modify the alpha value to rectify this. Therefore, the gamma space of the image itself must typically be assumed as the creator's intended mixing space.
+
+You might want to complain that there's no spec way to have floating point precision values with normal sRGB space mixing, but it just so happens that mixing in normal sRGB space is outright wrong. So there.
+
+    List of hard, format-level requirements:
+
+magic must be valid
+height starts at 0
+width starts at 0
+barrier must be valid
+parse format
+xorsum must be valid
+truncated data is opaque white
