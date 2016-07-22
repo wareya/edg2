@@ -14,7 +14,7 @@ Motivation
 
 EDG is designed to be a replacement and alternative to formats like DIB (e.g. Windows BMP). While many of the image formats out there are very extensible and very powerful, they all have bad growing pains and have become excessively complicated to use in arbitrary colorspaces or for HDR or for dumping raw image data to disk.
 
-libpng had has numerous security problems. DIB is a joke of poorly-supported extensions and complicated semantics. Farbfeld is a bikeshed that only stores consumer mountain bikes. EDG may be teetering on the edge of a cliff, but at least it works.
+libpng has had numerous security problems. DIB is a joke of poorly-supported extensions and complicated semantics. Farbfeld is a bikeshed that only stores consumer mountain bikes. EDG may be teetering on the edge of a cliff, but at least it works.
 
 I made EDG so that I can write C++ programs to experiment with image processing. This is probably its most appropriate usecase.
 
@@ -29,7 +29,7 @@ This repository contains a library and a few programs:
 * edgpop, an example program, upscales an EDG image to 2x using bilinear EDI.
 * edgmain, a rudimentary make-save-load cycle tester.
 
-Summary
+Summary 
 -------
 EDG stores a very simple 16-byte header followed by raw bitmap data. The bitmap field contains no padding or alignment semantics anywhere.
 
@@ -71,7 +71,7 @@ More-significant bits to the left.
 
 EDG is highly defined, and tries to leave few holes for decoders to behave differently from eachother when they're not supposed to. EDG specifies exactly what's intended with regards to file truncation, file padding, alpha mixing, and more. Implementations are allowed to behave differently in regards to these, but only if they're special-purpose implementations.
 
-There is one place that's left underspecified, because The Right Thing To Do is pretty much entirely dependent on the application at hand: Weird IEEE floating point values. Non-numeric floats are undefined, and can treated as an arbitrary color, a random color, a hole in the image, missing information that must be interpolated, or even an error-on-access. If your implementation must be resiliant, it's up to you to handle possible floating point exceptions yourself.
+There is one place that's left underspecified, because The Right Thing To Do is pretty much entirely dependent on the application at hand: Weird IEEE floating point values. Non-numeric floats are undefined, and can treated as an arbitrary color, a random color, a hole in the image, missing information that must be interpolated, or even an error-on-access. If your implementation must be resilient, it's up to you to handle possible floating point exceptions yourself.
 
 Additionally, the behavior of fully negative colors is application-defined, because it's useful for depicting imaginary colorspaces but useless for network graphics.
 
