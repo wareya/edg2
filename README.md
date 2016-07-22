@@ -109,8 +109,8 @@ If I'm wrong, and EDG takes off, and people use a different compression function
 **A:** Software patents are my enemy. If you want to use the reference EDG implementation in a more permissive project, without infecting your project's license layout, please email me and ask for a more permissive license. Note: If your project is GPLv2-not-newer, I probably won't give you a more permissive license unless you have a good reason; please first consider putting sufficient indirection between your program and libedg.
 
 **Q:** This looks like farbfeld with more stuff in the header and a different pixel format.
-**A:** It's not farbfeld. Any close-to-raw image format will look like farbfeld. Comparisons are meaningless.
 
+**A:** It's not farbfeld. Any close-to-raw image format will look like farbfeld. Comparisons are meaningless.
 
 **Q:** Why do you specify how the image data should be used, like the alpha function?
 
